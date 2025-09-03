@@ -124,7 +124,7 @@ void handle_pipe(const string &command){
             perror("fork");
             return;
         }
-        else if(pid == 0){ // child process
+        else if(!pid){ // child process
 
             // connect stdin of the previous pipe if it is not the first pipe
             if(i > 0){
@@ -195,9 +195,17 @@ void handle_pipe(const string &command){
             }
 
             // execute
-            execvp(argv[0], argv.data());
-            perror("execvp failed");
-            exit(1);
+            setpgid(0, 0); // put child in new process group
+            if(execvp(argv[0], argv.data()) < 0) {
+                perror("execvp");
+                exit(1);
+            }
+        }
+        else{
+            fg_pid = pid;
+            int status;
+            waitpid(pid, &status, WUNTRACED); // WUNTRACED -> returns if child is stopped
+            fg_pid = -1;
         }
     }
 

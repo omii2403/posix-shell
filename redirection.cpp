@@ -110,7 +110,7 @@ void handle_redirection(const string &command){
     args.push_back(NULL);
 
     pid_t pid = fork();
-    if (pid == 0) {
+    if (!pid) {
         // ---- Child ----
         setpgid(0,0);
         if (!infile.empty()) {
@@ -148,7 +148,7 @@ void handle_redirection(const string &command){
         fg_pid = pid;
         int status;
         waitpid(pid, &status, WUNTRACED);
-        fg_pid = 0;
+        fg_pid = -1;
     }
     else {
         perror("fork");

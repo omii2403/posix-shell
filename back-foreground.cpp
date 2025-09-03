@@ -6,7 +6,6 @@
 using namespace std;
 
 extern pid_t fg_pid;
-extern vector<pid_t> bg_pid;
 
 void handle_system(const string& command) {
     string args = command;
@@ -49,6 +48,7 @@ void handle_system(const string& command) {
         return;
     }
     if(!pid){
+        setpgid(0, 0);
         if (execvp(argv[0], argv.data()) == -1) {
             perror("No such command");
             exit(EXIT_FAILURE);
@@ -60,11 +60,10 @@ void handle_system(const string& command) {
             fg_pid = pid;  // track PGID = pid
             int status;
             waitpid(pid, &status, WUNTRACED); // wait also for stop (Ctrl-Z)
-            fg_pid = 0;
+            fg_pid = -1;
         }
         else {
             cout << "Process started in background with PID " << pid << endl;
-            bg_pid.push_back(pid);
         }
     }
 }

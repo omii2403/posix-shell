@@ -16,7 +16,7 @@ bool finish = false;
 bool redirection = false;
 bool pipeline = false;
 
-pid_t fg_pid = 0;   
+pid_t fg_pid = -1;
 vector<pid_t> bg_pid;
 
 string tokenizer(string s){
@@ -155,10 +155,10 @@ void handle_command(string s){
 
 void handle_sigtstp(int sig) {
     if (fg_pid > 0) {
-        kill(fg_pid, SIGTSTP);
+        kill(-fg_pid, SIGTSTP);
         cout << endl << "Process " << fg_pid << " stopped and moved to background" << endl;
-        bg_pid.push_back(fg_pid);
-    } else if(fg_pid < 0) {
+    }
+    else{
         cout << endl << "No foreground process to stop" << endl;
         rl_on_new_line();
         rl_replace_line("", 0);
@@ -167,14 +167,16 @@ void handle_sigtstp(int sig) {
 }
 
 void handle_sigint(int sig) {
-    if (fg_pid > 0) {
-        kill(fg_pid, SIGINT);
-        fg_pid = 0;
-    } 
-    else {
-    rl_on_new_line();
-    rl_replace_line("", 0);
-    rl_redisplay();
+    if(fg_pid > 0){
+        kill(-fg_pid, SIGINT);   // send SIGINT to the whole fg process group
+        cout << endl << "Process " << fg_pid << " interrupted" << endl;
+        fg_pid = -1;             // reset foreground tracker
+    }
+    else{
+        cout << endl << "No foreground process to interrupt" << endl;
+        rl_on_new_line();
+        rl_replace_line("", 0);
+        rl_redisplay();
     }
 }
 
@@ -184,7 +186,7 @@ void sigchld_handler(int sig){
     while((pid=waitpid(-1, &status, WNOHANG))>0){
         auto it=find(bg_pid.begin(), bg_pid.end(), pid);
         if(it!=bg_pid.end()){
-            cout << "Process with id " << pid << " killed." << endl;
+            cout << "Process with id " << pid << " Done." << endl;
             bg_pid.erase(it);
             rl_on_new_line();
             rl_redisplay();
