@@ -15,3 +15,4 @@ void save_history();
 void handle_history(const string &arg);
 void store_history(const string &arg);
 void handle_pipe(const string &command);
+vector<string> tokenize(const string &command);

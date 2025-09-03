@@ -6,7 +6,7 @@
 #include <sys/wait.h> // waitpid
 using namespace std;
 
-extern pid_t foreground_pid;
+extern pid_t fg_pid;
 
 
 string strip_quotes(const string &arg) {
@@ -138,10 +138,6 @@ void handle_redirection(const string &command){
             close(fd);
         }
 
-        setpgid(0, 0);          // put child in its own group
-        signal(SIGINT, SIG_DFL);
-        signal(SIGTSTP, SIG_DFL);
-
         if(execvp(args[0], args.data()) < 0){
             perror("execvp");
             exit(1);
@@ -149,10 +145,10 @@ void handle_redirection(const string &command){
     }
     else if (pid > 0) {
         // ---- Parent ----
-        foreground_pid = pid;
+        fg_pid = pid;
         int status;
-        waitpid(pid, &status, 0);
-        foreground_pid = -1;
+        waitpid(pid, &status, WUNTRACED);
+        fg_pid = 0;
     }
     else {
         perror("fork");

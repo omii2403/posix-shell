@@ -24,7 +24,3 @@ $(TARGET): $(OBJS)
 # Clean up build files
 clean:
 	rm -f $(OBJS) $(TARGET)
-
-# Run the shell
-run: $(TARGET)
-	./$(TARGET)

@@ -8,6 +8,7 @@
 #include <readline/history.h>
 #include <signal.h>
 #include <vector>
+#include <wait.h>
 #include "commands.h"
 using namespace std;
 
@@ -15,7 +16,8 @@ bool finish = false;
 bool redirection = false;
 bool pipeline = false;
 
-pid_t foreground_pid = -1;    // -1 means no foreground process
+pid_t fg_pid = 0;   
+vector<pid_t> bg_pid;
 
 string tokenizer(string s){
     string t = "";
@@ -84,9 +86,11 @@ void handle_command(string s){
             temp += s[i];
         }
     }
+    
     if(pipeline){
         handle_pipe(s);
         pipeline = false;
+        redirection = false;
         return;
     }
     if(redirection){
@@ -103,6 +107,10 @@ void handle_command(string s){
     else if(temp == "echo"){
         // Handle echo
         string t = "";
+        if(k == 0){
+            cout << endl;
+            return;
+        }
         for(int i = k+1; i < n;i++) t += s[i];
         t = strip_quotes(t);
         cout << t << endl;
@@ -146,10 +154,11 @@ void handle_command(string s){
 }
 
 void handle_sigtstp(int sig) {
-    if (foreground_pid > 0) {
-        kill(-foreground_pid, SIGTSTP);
-        cout << endl << "Process " << foreground_pid << " stopped and moved to background" << endl;
-    } else {
+    if (fg_pid > 0) {
+        kill(fg_pid, SIGTSTP);
+        cout << endl << "Process " << fg_pid << " stopped and moved to background" << endl;
+        bg_pid.push_back(fg_pid);
+    } else if(fg_pid < 0) {
         cout << endl << "No foreground process to stop" << endl;
         rl_on_new_line();
         rl_replace_line("", 0);
@@ -158,14 +167,28 @@ void handle_sigtstp(int sig) {
 }
 
 void handle_sigint(int sig) {
-    if (foreground_pid > 0) {
-        kill(-foreground_pid, SIGINT);
-        cout << endl << "Process " << foreground_pid << " interrupted" << endl;
-    } else {
-        cout << endl << "No foreground process to interrupt" << endl;
-        rl_on_new_line();
-        rl_replace_line("", 0);
-        rl_redisplay();
+    if (fg_pid > 0) {
+        kill(fg_pid, SIGINT);
+        fg_pid = 0;
+    } 
+    else {
+    rl_on_new_line();
+    rl_replace_line("", 0);
+    rl_redisplay();
+    }
+}
+
+void sigchld_handler(int sig){
+    pid_t pid;
+    int status;
+    while((pid=waitpid(-1, &status, WNOHANG))>0){
+        auto it=find(bg_pid.begin(), bg_pid.end(), pid);
+        if(it!=bg_pid.end()){
+            cout << "Process with id " << pid << " killed." << endl;
+            bg_pid.erase(it);
+            rl_on_new_line();
+            rl_redisplay();
+        }
     }
 }
 
@@ -183,17 +206,16 @@ int main(){
     char* home = getenv("HOME");
     string homeDir = string(home);
 
-    cout << homeDir << endl;
-
     // Clear the screens
     cout << "\033[2J\033[H";  // ANSI escape code
 
     signal(SIGTSTP, handle_sigtstp); // CTRL + Z
     signal(SIGINT, handle_sigint); // CTRL + C
-    signal(SIGCHLD, SIG_IGN); // simplest way to reap background jobs
+    signal(SIGCHLD, sigchld_handler);
 
     // TAB
     autocomplete();
+    rl_catch_signals = 0;
     // this will show multiple matches
     rl_bind_key('\t', rl_complete);
     rl_completion_query_items =100;
@@ -235,6 +257,7 @@ int main(){
         string command = "";
         for(int i=0; i<line.size(); i++){
             if(line[i] == ';'){
+                pipeline = redirection = false;
                 string temp = tokenizer(command);
                 handle_command(temp);
                 command = "";

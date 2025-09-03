@@ -7,7 +7,7 @@
 
 using namespace std;
 
-extern pid_t foreground_pid;
+extern pid_t fg_pid;
 
 string clean(const string &s) {
     string t = s;
@@ -103,6 +103,7 @@ vector<vector<string>> build_pipeline(const string &s) {
 }
 
 void handle_pipe(const string &command){
+    cout << "IS this called ?? " << endl;
     vector<vector<string>> stages = build_pipeline(command);
     int total = stages.size();
     if(total == 0) return;
@@ -116,8 +117,6 @@ void handle_pipe(const string &command){
         }
     }
 
-    pid_t pgid = -1; // process group id for the pipeline
-
     // process each stage
     for(int i=0;i < total; i++){
         pid_t pid = fork();
@@ -126,10 +125,6 @@ void handle_pipe(const string &command){
             return;
         }
         else if(pid == 0){ // child process
-            // put child in its own group
-            setpgid(0, 0);
-            signal(SIGINT, SIG_DFL);
-            signal(SIGTSTP, SIG_DFL);
 
             // connect stdin of the previous pipe if it is not the first pipe
             if(i > 0){
@@ -204,28 +199,14 @@ void handle_pipe(const string &command){
             perror("execvp failed");
             exit(1);
         }
-        else { // parent
-            if (pgid == -1){
-                pgid = pid;          // first child becomes group leader
-                setpgid(pid, pgid);
-                foreground_pid = pgid;  // track foreground pipeline
-            }
-            else{
-                setpgid(pid, pgid);  // add child to same process group
-            }
-        }
     }
 
     // parent process closes all pipe file descriptors
     for(int fd: v) close(fd);
 
     // wait for the whole pipeline process group
-    int status;
-    while (waitpid(-foreground_pid, &status, WUNTRACED) > 0) {
-        if (WIFSTOPPED(status)) {
-            cout << "Pipeline stopped and moved to background" << endl;
-            break;
-        }
+    for(int i=0;i<total ; i++){
+        int s;
+        wait(&s);
     }
-    foreground_pid = -1;
 }

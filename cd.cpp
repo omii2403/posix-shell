@@ -2,6 +2,8 @@
 #include <string>
 #include <unistd.h>
 #include <limits.h>
+#include <vector>
+#include <cstring>
 using namespace std;
 
 static string prevDir = "";
@@ -10,6 +12,20 @@ void handle_cd(const string &s){
     char cwd[PATH_MAX];
     getcwd(cwd, sizeof(cwd));
     string currDir = cwd;
+    char buf[s.size() + 1];
+    strcpy(buf, s.c_str());
+
+    vector<char*> tokens;
+    char *tok = strtok(buf, " ");
+    while (tok != NULL) {
+        tokens.push_back(tok);
+        tok = strtok(NULL, " ");
+    }
+
+    if(tokens.size() >= 2){
+        cout << "cd: too many arguments" << endl;
+        return;
+    }
 
     if(s.empty() || s == "~"){
         // If empty string, return to home

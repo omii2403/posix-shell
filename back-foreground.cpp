@@ -5,7 +5,8 @@
 #include <sys/wait.h>
 using namespace std;
 
-extern pid_t foreground_pid;
+extern pid_t fg_pid;
+extern vector<pid_t> bg_pid;
 
 void handle_system(const string& command) {
     string args = command;
@@ -43,33 +44,27 @@ void handle_system(const string& command) {
 
     // --- Fork & Exec ---
     pid_t pid = fork();
-    if (pid < 0) {
+    if(pid < 0) {
         perror("fork");
         return;
     }
-    if (pid == 0) {
-        // Child process
-        setpgid(0, 0);          // put child in its own group
-        signal(SIGINT, SIG_DFL);
-        signal(SIGTSTP, SIG_DFL);
-
+    if(!pid){
         if (execvp(argv[0], argv.data()) == -1) {
-            perror("execvp");
+            perror("No such command");
             exit(EXIT_FAILURE);
         }
-    } else {
+    }
+    else{
         // Parent process
-        if (bg) {
-            cout << "Process started in background with PID " << pid << endl;
-        }
-        else {
-            foreground_pid = pid;  // track PGID = pid
+        if (!bg) {
+            fg_pid = pid;  // track PGID = pid
             int status;
             waitpid(pid, &status, WUNTRACED); // wait also for stop (Ctrl-Z)
-            foreground_pid = -1;
-            if (WIFSTOPPED(status)) {
-                cout << "Process " << pid << " stopped and moved to background" << endl;
-            }
+            fg_pid = 0;
+        }
+        else {
+            cout << "Process started in background with PID " << pid << endl;
+            bg_pid.push_back(pid);
         }
     }
 }

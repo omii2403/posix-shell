@@ -7,7 +7,7 @@
 #include <string>
 using namespace std;
 
-extern pid_t foreground_pid;   // bring in from main.cpp
+extern pid_t fg_pid;   // bring in from main.cpp
 
 string fun(const string &path){
     int fd = open(path.c_str(), O_RDONLY);
@@ -40,7 +40,7 @@ void handle_pinfo(const string &arg) {
         }
     }
     // add "+" if this process is foreground
-    if (pid == foreground_pid) {
+    if (pid == fg_pid) {
         state += "+";
     }
     
