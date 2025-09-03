@@ -1,0 +1,120 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <pwd.h>
+#include <grp.h>
+
+using namespace std;
+
+vector<string> tokens(const string &arg){
+    string temp = "";
+    vector<string> parts;
+    for(char c : arg){
+        if(c == ' '){
+            if(!temp.empty()){
+                parts.push_back(temp);
+                temp ="";
+            }
+        }
+        else temp += c;
+    }
+    if(!temp.empty()) parts.push_back(temp);
+    return parts;
+}
+
+void handle_ls(const string &cmd){
+    bool flg_a = false, flg_l = false;
+    vector<string> dirs; // store multiple directories
+
+    vector<string> args = tokens(cmd);
+
+    for(int i=0;i < args.size(); i++){
+        string arg = args[i];
+        if(arg == "-a") flg_a = true;
+        else if(arg =="-l") flg_l = true;
+        else if(arg[0] == '-'){
+            for(int j=0; j<arg.size(); j++){
+                if(arg[j] == 'a') flg_a = true;
+                else if(arg[j] == 'l') flg_l = true;
+            }
+        }
+        else dirs.push_back(arg); // collect directories
+    }
+
+    if(dirs.empty()) dirs.push_back("."); // default dir
+
+    for(int d=0; d<dirs.size(); d++){
+        string dirPath = dirs[d];
+        DIR *dp = opendir(dirPath.c_str());
+
+        if(!dp){
+            perror("ls");
+            continue;
+        }
+
+        if(dirs.size() > 1) cout << dirPath << ":" << endl; // print header if multiple dirs
+
+        vector<string> files;
+        struct dirent *de;
+        while((de = readdir(dp)) != nullptr){
+            string fname = de->d_name;
+            if(flg_a || fname[0] != '.') files.push_back(fname);
+        }
+        closedir(dp);
+
+        sort(files.begin(), files.end());
+
+        if(flg_l){
+            long long blk = 0;
+            vector<struct stat> stv(files.size());
+
+            // collect stats and block count
+            for(size_t i=0;i <files.size(); i++){
+                string fpath = dirPath + "/" + files[i];
+                if(stat(fpath.c_str(), &stv[i]) == -1) continue;
+                blk += stv[i].st_blocks;
+            }
+
+            cout << "total " << (blk >> 1) << endl;
+
+            for(size_t i=0; i<files.size(); i++){
+                string fpath = dirPath + "/" + files[i];
+                struct stat st;
+                if(stat(fpath.c_str(), &st) == -1) continue;
+
+                mode_t m = st.st_mode;
+                cout << (S_ISDIR(m) ? 'd' : '-');
+                cout << ((m & S_IRUSR) ? 'r' : '-');
+                cout << ((m & S_IWUSR) ? 'w' : '-');
+                cout << ((m & S_IXUSR) ? 'x' : '-');
+                cout << ((m & S_IRGRP) ? 'r' : '-');
+                cout << ((m & S_IWGRP) ? 'w' : '-');
+                cout << ((m & S_IXGRP) ? 'x' : '-');
+                cout << ((m & S_IROTH) ? 'r' : '-');
+                cout << ((m & S_IWOTH) ? 'w' : '-');
+                cout << ((m & S_IXOTH) ? 'x' : '-');
+
+                cout << ' ' << st.st_nlink << ' ';
+                struct passwd *pw = getpwuid(st.st_uid);
+                struct group *gr = getgrgid(st.st_gid);
+                cout << (pw ? pw->pw_name : "?") << ' ' << (gr ? gr->gr_name : "?") << " " << st.st_size << " ";
+
+                char tbuf[80];
+                struct tm *ti = localtime(&st.st_mtime);
+                strftime(tbuf, sizeof(tbuf), "%b %d %H:%M", ti);
+                cout << tbuf << " ";
+
+                cout << files[i] << endl;
+            }
+        }
+        else{
+            for (auto &f : files) cout << f << "  ";
+            cout << endl;
+        }
+        if(dirs.size() > 1 && d < dirs.size()-1) cout << endl; // blank line between dirs
+    }
+}
+
