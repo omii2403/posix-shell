@@ -138,28 +138,29 @@ void handle_pipe(const string &command){
 
     // process each stage by stagee
     for(int i=0;i < total; i++){
-        pid_t pid = fork();
-        if(pid < 0){
+        pid_t pid;
+        if((pid = fork()) < 0){
             perror("fork");
             return;
         }
         else if(!pid){ // children process
 
+            // connect stdout to next pipe if it is not the last pipe
+            if(i < total - 1){
+                if(dup2(v[(i*2)+1], STDOUT_FILENO) < 0){
+                    perror("dup2 output");
+                    exit(1);
+                }
+            }
+
             // connect stdin of the previous pipe if it is not the first pipe
             if(i > 0){
-                if(dup2(v[(i-1) *2], STDIN_FILENO) < 0){
+                if(dup2(v[(i-1)*2], STDIN_FILENO) < 0){
                     perror("dup2 input");
                     exit(1);
                 }
             }
 
-            // connect stdout to next pipe if it is not the last pipe
-            if(i < total - 1){
-                if(dup2(v[i*2 + 1], STDOUT_FILENO) < 0){
-                    perror("dup2 output");
-                    exit(1);
-                }
-            }
 
             // close all pipe file descriptors in child
             for(auto it: v) close(it);
@@ -190,23 +191,12 @@ void handle_pipe(const string &command){
             for(auto &s : keep) argv.push_back(const_cast<char*>(s.c_str()));
             argv.push_back(nullptr);
 
-            // handle input redirection
-            if(!ifile.empty()){
-                int fd = open(ifile.c_str(), O_RDONLY);
-                if(fd < 0){
-                    perror("open input");
-                    exit(1);
-                }
-                dup2(fd, STDIN_FILENO);
-                close(fd);
-            }
-
             // handle output redirection
             if(!ofile.empty()){
                 int fd;
                 // Create a new file if not present
-                if(append) fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
-                else fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                if(!append) fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                else fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if(fd < 0){
                     perror("open output");
                     exit(1);
@@ -214,6 +204,20 @@ void handle_pipe(const string &command){
                 dup2(fd, STDOUT_FILENO);
                 close(fd);
             }
+
+            // handle input redirection
+            if(!ifile.empty()){
+                int fd = open(ifile.c_str(), O_RDONLY);
+                if(fd >= 0){
+                    dup2(fd, STDIN_FILENO);
+                    close(fd);
+                }
+                else{
+                    perror("open input");
+                    exit(1);
+                }
+            }
+
 
             // execute
             setpgid(0, 0); // put child in new process group

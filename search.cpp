@@ -37,19 +37,20 @@ bool dfs(const string &p, const string &f){
 }
 
 void handle_search(const string &command){
-    if(command.size() <= 2){
-        cout << "File name not provided" << endl;
+    if(command.size() == 2){
+        string path = ".";
+        string file = command;
+        size_t pos = command.find_last_of('/');
+        if(pos != string::npos) {   // path provided
+            path = command.substr(0, pos);
+            if(path.empty()) path = ".";
+            file = command.substr(pos+1);
+        }
+        // dfs call to find the file in the current dir and the children dirs
+        cout << (dfs(path, file) ? "True" : "False") << endl;
         return;
     }
-
-    string path = ".";
-    string file = command;
-    size_t pos = command.find_last_of('/');
-    if(pos != string::npos) {   // path provided
-        path = command.substr(0, pos);
-        if(path.empty()) path = ".";
-        file = command.substr(pos+1);
-    }
-    // dfs call to find the file in the current dir and the children dirs
-    cout << (dfs(path, file) ? "True" : "False") << endl;
+    cout << "File name not provided" << endl;
+    return;
+    
 }
