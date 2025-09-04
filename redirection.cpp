@@ -80,6 +80,7 @@ void handle_redirection(const string &command){
     vector<string> tokens = tokenize(command);
     string ifile = "", ofile= "";
     bool append = false;
+    vector<string> keep;
     vector<char*> args;
 
     // Scan for redirection tokens
@@ -99,37 +100,43 @@ void handle_redirection(const string &command){
             append = true;
             i++;
         }
-        else args.push_back(const_cast<char*>(strip_quotes(tokens[i]).c_str()));
+        else keep.push_back(strip_quotes(tokens[i]));
     }
+    for (auto &s : keep) args.push_back(const_cast<char*>(s.c_str()));
     args.push_back(NULL);
 
-    pid_t pid = fork();
-    if(!pid){
+    pid_t pid;
+    if(!(pid = fork())){
         // child process execution flow
         setpgid(0,0);
-        if(!ifile.empty()){
-            int fd = open(ifile.c_str(), O_RDONLY);
-            if(fd < 0){
-                perror("Input file error");
-                exit(1);
-            }
-            // Duplicate FD to FD2, closing FD2 and making it open on the same file.
-            dup2(fd, STDIN_FILENO);
-            close(fd);
-        }
 
         if(!ofile.empty()){
             int fd;
             if(append) fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
             else fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
-            if(fd < 0){
+            if(fd >=0){
+                // duplicate file conteent
+                dup2(fd, STDOUT_FILENO);
+                close(fd);
+            }
+            else{
                 perror("Output file error");
                 exit(1);
             }
-            // duplicste file conteent
-            dup2(fd, STDOUT_FILENO);
-            close(fd);
+        }
+
+        if(!ifile.empty()){
+            int fd = open(ifile.c_str(), O_RDONLY);
+            if(fd >= 0){
+                // Duplicate FD to FD2, closing FD2 and making it open on the same file.
+                dup2(fd, STDIN_FILENO);
+                close(fd);
+            }
+            else{
+                perror("Input file error");
+                exit(1);
+            }
         }
 
         if(execvp(args[0], args.data()) < 0){

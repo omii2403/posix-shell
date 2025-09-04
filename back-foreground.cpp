@@ -44,8 +44,8 @@ void handle_system(const string& command) {
     argv.push_back(nullptr);
 
     // fork and execute the command
-    pid_t pid = fork();
-    if(pid < 0){
+    pid_t pid;
+    if((pid = fork()) < 0){
         perror("fork");
         return;
     }

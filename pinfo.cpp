@@ -11,15 +11,17 @@ extern pid_t fg_pid;   // bring in from main.cpp
 
 string fun(const string &path){
     int fd = open(path.c_str(), O_RDONLY);
-    if(fd< 0) return "";
+    if(fd<= -1) return "";
 
-    char buf[4096];
+    char buf[8192];
     ssize_t n = read(fd, buf, sizeof(buf) -1);
     close(fd);
 
-    if(n <=0) return "";
-    buf[n] = '\0';
-    return string(buf);
+    if(n > 0){
+        buf[n] = '\0';
+        return string(buf);
+    }
+    else return "";
 }
 
 void handle_pinfo(const string &arg) {
