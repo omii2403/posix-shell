@@ -1,5 +1,5 @@
-#pragma once
 #include <string>
+#include <vector>
 using namespace std;
 
 void handle_cd(const string& command);

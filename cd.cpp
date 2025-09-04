@@ -13,15 +13,9 @@ void handle_cd(const string &cmd){
     char cwd[PATH_MAX];
     getcwd(cwd, sizeof(cwd));
     string currDir = cwd;
-    char buf[cmd.size() + 1];
-    strcpy(buf, cmd.c_str());
 
-    vector<char*> tokens;
-    char *tok = strtok(buf, " ");
-    while (tok != NULL) {
-        tokens.push_back(tok);
-        tok = strtok(NULL, " ");
-    }
+    // tokenize the string
+    vector<string> tokens = tokenize(cmd);
 
     if(tokens.size() >= 2){
         cout << "cd: too many arguments" << endl;
@@ -38,15 +32,16 @@ void handle_cd(const string &cmd){
             if(chdir(home) != 0) perror("cd");
         }
     }
+    // if . then stay in the same directory
     else if(s == ".") prevDir = currDir;
     else if(s == ".."){
+        // move to back directory
         prevDir = currDir;
         if(chdir("..") != 0) perror("cd");
     }
     else if(s == "-"){
-        if(prevDir.empty()){
-            cerr << "cd: Old Directory is not set" << endl;
-        }
+        // go back to previous dir
+        if(prevDir.empty()) cerr << "cd: Old Directory is not set" << endl;
         else{
             string temp = prevDir;
             prevDir = currDir;

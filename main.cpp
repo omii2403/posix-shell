@@ -83,90 +83,99 @@ string string_processor(string s){
     return t;
 }
 
+// Handle each command
 void handle_command(string s){
-    if(s.empty()) return;
-    int n = s.size();
-    string temp = "";
-    int k = 0;
-    // separate the command line by space
-    for(int i=0; i < n; i++){
-        if(s[i] == ' '){
-            k = i;
-            break;
+    try {
+        if(s.empty()) return;
+        int n = s.size();
+        string temp = "";
+        int k = 0;
+        // separate the command line by space
+        for(int i=0; i < n; i++){
+            if(s[i] == ' '){
+                k = i;
+                break;
+            }
+            else temp += s[i];
         }
-        else temp += s[i];
-    }
-    if(bg_flag){
-        handle_system(s);
-        bg_flag = false;
-        pipeline = false;
-        redirection = false;
-        return;
-    }
-    
-    if(pipeline){
-        handle_pipe(s);
-        pipeline = false;
-        redirection = false;
-        return;
-    }
-    if(redirection){
-        handle_redirection(s);
-        redirection = false;
-        return;
-    }
-    if(temp == "cd"){
-        // Handle cd
-        string arg = "";
-        if(k != 0) arg = s.substr(k+1);
-        handle_cd(arg);
-    }
-    else if(temp == "echo"){
-        // Handle echo
-        string t = "";
-        if(k == 0){
-            cout << endl;
+        if(bg_flag){ // handle if background process found
+            handle_system(s);
+            bg_flag = false;
+            pipeline = false;
+            redirection = false;
             return;
         }
-        for(int i = k+1; i < n;i++) t += s[i];
-        t = strip_quotes(t);
-        cout << t << endl;
+        
+        if(pipeline){ // handle if pipeline found
+            handle_pipe(s);
+            pipeline = false;
+            redirection = false;
+            return;
+        }
+        if(redirection){ // handle if redirection found
+            handle_redirection(s);
+            redirection = false;
+            return;
+        }
+        if(temp == "cd"){
+            // Handle cd
+            string arg = "";
+            if(k != 0) arg = s.substr(k+1);
+            handle_cd(arg);
+        }
+        else if(temp == "echo"){
+            // Handle echo
+            string t = "";
+            if(k == 0){
+                cout << endl;
+                return;
+            }
+            for(int i = k+1; i < n;i++) t += s[i];
+            t = strip_quotes(t);
+            cout << t << endl;
+        }
+        else if(temp == "pwd"){
+            // Handle pwd
+            char curr[PATH_MAX];
+            getcwd(curr, sizeof(curr));
+            string currDir = curr;
+            cout << currDir << endl;
+        }
+        else if(temp == "exit"){
+            finish = true;
+            return;
+        }
+        else if(temp == "ls"){
+            string arg = "";
+            if(k != 0) arg = s.substr(k+1);
+            handle_ls(arg);
+        }
+        else if(temp == "pinfo"){
+            string arg = "";
+            if(k != 0) arg = s.substr(k+1);
+            handle_pinfo(arg);
+        }
+        else if(temp == "search"){
+            string arg = "";
+            if(k != 0) arg = s.substr(k+1);
+            handle_search(arg);
+        }
+        else if (temp == "history") {
+            string arg = "";
+            if (k != 0) arg = s.substr(k + 1);
+            handle_history(arg);
+        }
+        else{
+            // perror(temp.c_str());
+            handle_system(s);
+            // cerr << temp << ": Command does not exist" << endl;
+        }
     }
-    else if(temp == "pwd"){
-        // Handle pwd
-        char curr[PATH_MAX];
-        getcwd(curr, sizeof(curr));
-        string currDir = curr;
-        cout << currDir << endl;
+    catch (const std::exception &e) {
+        cerr << "Error: " << e.what() << endl;
     }
-    else if(temp == "exit"){
-        finish = true;
-        return;
-    }
-    else if(temp == "ls"){
-        string arg = "";
-        if(k != 0) arg = s.substr(k+1);
-        handle_ls(arg);
-    }
-    else if(temp == "pinfo"){
-        string arg = "";
-        if(k != 0) arg = s.substr(k+1);
-        handle_pinfo(arg);
-    }
-    else if(temp == "search"){
-        string arg = "";
-        if(k != 0) arg = s.substr(k+1);
-        handle_search(arg);
-    }
-    else if (temp == "history") {
-        string arg = "";
-        if (k != 0) arg = s.substr(k + 1);
-        handle_history(arg);
-    }
-    else{
-        // perror(temp.c_str());
-        handle_system(s);
-        // cerr << temp << ": Command does not exist" << endl;
+    catch (...) {
+        cerr << "Unknown error occurred while handling command: " << s << endl;
     }
 }
 
@@ -203,7 +212,7 @@ void handle_sigchld(int sig){
     while((pid=waitpid(-1, &status, WNOHANG))>0){
         auto it=find(bg_pid.begin(), bg_pid.end(), pid);
         if(it!=bg_pid.end()){
-            cout << "Process with id " << pid << " Done." << endl;
+            cout << endl << "[" << pid << "] " << " Done" << endl;
             bg_pid.erase(it);
             rl_on_new_line();
             rl_redisplay();

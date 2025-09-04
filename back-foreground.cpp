@@ -15,6 +15,7 @@ void handle_system(const string& command) {
 
     bool bg= false;
     if(args[args.size() - 1] == '&'){
+        // if & is found then the process is background, so set the flag true
         bg = true;
         args.pop_back();
         if(args.size() > 0 && args[args.size() - 1] == ' ') args.pop_back();
@@ -34,10 +35,10 @@ void handle_system(const string& command) {
     }
     if(!token.empty()) tokens.push_back(token);
 
-    // if no token found then return
+    // if no tokens founded then return
     if(tokens.empty()) return;
 
-    // Convert to char* array for execvp
+    // Convert the arguments to char* array
     vector<char*> argv;
     for(auto &t : tokens) argv.push_back(const_cast<char*>(t.c_str()));
     argv.push_back(nullptr);
@@ -48,7 +49,7 @@ void handle_system(const string& command) {
         perror("fork");
         return;
     }
-    if(!pid){
+    if(!pid){ // child process if pid == 0
         setpgid(0, 0); // group processes
         if (execvp(argv[0], argv.data()) == -1) {
             perror("Command not found");
@@ -58,12 +59,14 @@ void handle_system(const string& command) {
     else{
         // Parent process
         if(!bg){
+            // for foreground processss
             fg_pid = pid;  // track PGID = pid
             int status;
             waitpid(pid, &status, WUNTRACED); // wait also for stop (Ctrl-Z)
             fg_pid = -1;
         }
         else{
+            // this is for background process
             cout << "Process started in background with PID " << pid << endl;
             bg_pid.push_back(pid);
         }

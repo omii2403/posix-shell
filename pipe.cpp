@@ -4,11 +4,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <wait.h>
+#include "commands.h"
 
 using namespace std;
 
-extern pid_t fg_pid;
+extern pid_t fg_pid; // foreground process id
 
+// clean the string by removing extra chars from begining and end
 string clean(const string &s) {
     string t = s;
     while(!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
@@ -16,7 +18,7 @@ string clean(const string &s) {
     return t;
 }
 
-// convert string 
+// convert string to vector<vector<string>> according to pipe and spaces
 vector<vector<string>> build_pipeline(const string &s){
     vector<vector<string>> stages;
     vector<string> current;
@@ -28,6 +30,8 @@ vector<vector<string>> build_pipeline(const string &s){
         // detect pipeline/redirection outside quotes
         if(!flag1 && !flag2 && (s[i] == '|')){
             if(!t.empty()){
+                // clear qutoes before adding
+                t = strip_quotes(t);
                 current.push_back(t);
                 t = "";
             }
@@ -39,6 +43,7 @@ vector<vector<string>> build_pipeline(const string &s){
         }
         if(!flag1 && !flag2 && (s[i] == '>' || s[i] == '<')){
             if(!t.empty()){
+                t = strip_quotes(t);
                 current.push_back(t);
                 t = "";
             }
@@ -49,12 +54,13 @@ vector<vector<string>> build_pipeline(const string &s){
             else{
                 string temp = "";
                 temp += s[i];
+                temp = strip_quotes(temp);
                 current.push_back(temp);
             }
             continue;
         }
 
-        // inside quotes: keep chars
+        // inside quotee, then keep the chars
         if((flag1 || flag2) && s[i] != '\'' && s[i] != '"'){
             t += s[i];
             continue;
@@ -79,6 +85,7 @@ vector<vector<string>> build_pipeline(const string &s){
         // outside quotes: space handling
         if(!flag3 && s[i] == ' '){
             if (!t.empty()) {
+                t = strip_quotes(t);
                 current.push_back(t);
                 t = "";
             }
@@ -94,10 +101,25 @@ vector<vector<string>> build_pipeline(const string &s){
         }
     }
 
-    if (!t.empty()) current.push_back(t);
+    if (!t.empty()){
+        t = strip_quotes(t);
+        current.push_back(t);
+    }
     if (!current.empty()) stages.push_back(current);
 
     return stages;
+}
+
+
+// for debugging purpose, print all the stages
+void printStages(const vector<vector<string>>& stages) {
+    for (size_t i = 0; i < stages.size(); ++i) {
+        cout << "Stage " << i << ": ";
+        for (const string& token : stages[i]) {
+            cout << token << ", ";
+        }
+        cout << endl;
+    }
 }
 
 void handle_pipe(const string &command){
@@ -114,14 +136,14 @@ void handle_pipe(const string &command){
         }
     }
 
-    // process each stage
+    // process each stage by stagee
     for(int i=0;i < total; i++){
         pid_t pid = fork();
         if(pid < 0){
             perror("fork");
             return;
         }
-        else if(!pid){ // child process
+        else if(!pid){ // children process
 
             // connect stdin of the previous pipe if it is not the first pipe
             if(i > 0){
@@ -163,7 +185,8 @@ void handle_pipe(const string &command){
                     keep.push_back(t);
                 }
             }
-
+            
+            // prepare arguments array for execvp
             for(auto &s : keep) argv.push_back(const_cast<char*>(s.c_str()));
             argv.push_back(nullptr);
 
@@ -181,6 +204,7 @@ void handle_pipe(const string &command){
             // handle output redirection
             if(!ofile.empty()){
                 int fd;
+                // Create a new file if not present
                 if(append) fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
                 else fd = open(ofile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
                 if(fd < 0){
@@ -198,11 +222,9 @@ void handle_pipe(const string &command){
                 exit(1);
             }
         }
+        
         else{
-            fg_pid = pid;
-            int status;
-            waitpid(pid, &status, WUNTRACED); // WUNTRACED -> returns if child is stopped
-            fg_pid = -1;
+            if(i == total - 1) fg_pid = pid;
         }
     }
 
@@ -214,4 +236,5 @@ void handle_pipe(const string &command){
         int s;
         wait(&s);
     }
+    fg_pid = -1;
 }
