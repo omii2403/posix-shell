@@ -3,8 +3,6 @@
 ## Overview
 This project is a **custom shell implementation in C++** that mimics the behavior of standard shells like `bash` or `zsh`. It supports built-in commands (`cd`, `pwd`, `ls`, etc.), execution of system commands, background/foreground jobs, input/output redirection, pipelines, command history, autocomplete, and signal handling.
 
-The shell was implemented as part of **Assignment 2 for the Advanced Operating Systems (Monsoon 2025)** course.
-
 ---
 
 ## Features Implemented
@@ -47,7 +45,7 @@ The shell was implemented as part of **Assignment 2 for the Advanced Operating S
 
 ## File Structure
 ```
-2025201008_Assignment2/
+/
 │── README.md              # Documentation (this file)
 │── makefile               # Build instructions
 │── main.cpp               # Entry point, shell loop, signal handling
