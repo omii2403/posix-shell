@@ -4,16 +4,17 @@
 #include <limits.h>
 #include <vector>
 #include <cstring>
+#include "commands.h"
 using namespace std;
 
 static string prevDir = "";
 
-void handle_cd(const string &s){
+void handle_cd(const string &cmd){
     char cwd[PATH_MAX];
     getcwd(cwd, sizeof(cwd));
     string currDir = cwd;
-    char buf[s.size() + 1];
-    strcpy(buf, s.c_str());
+    char buf[cmd.size() + 1];
+    strcpy(buf, cmd.c_str());
 
     vector<char*> tokens;
     char *tok = strtok(buf, " ");
@@ -26,6 +27,8 @@ void handle_cd(const string &s){
         cout << "cd: too many arguments" << endl;
         return;
     }
+
+    string s = strip_quotes(cmd);
 
     if(s.empty() || s == "~"){
         // If empty string, return to home

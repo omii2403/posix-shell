@@ -2,10 +2,13 @@
 #include <string>
 #include <dirent.h>
 #include <sys/stat.h>
+#include "commands.h"
 
 using namespace std;
 
-bool dfs(const string &path, const string &file){
+bool dfs(const string &p, const string &f){
+    string path = strip_quotes(p);
+    string file = strip_quotes(f);
     DIR *dir = opendir(path.c_str());
     if(!dir) return false;
 

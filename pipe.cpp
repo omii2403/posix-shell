@@ -11,15 +11,13 @@ extern pid_t fg_pid;
 
 string clean(const string &s) {
     string t = s;
-    while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' '))
-        t.pop_back();
-    while (!t.empty() && (t.front() == ' ' || t.front() == '\t'))
-        t.erase(t.begin());
+    while(!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+    while(!t.empty() && (t.front() == ' ' || t.front() == '\t')) t.erase(t.begin());
     return t;
 }
 
-
-vector<vector<string>> build_pipeline(const string &s) {
+// convert string 
+vector<vector<string>> build_pipeline(const string &s){
     vector<vector<string>> stages;
     vector<string> current;
     string t = "";
@@ -103,7 +101,6 @@ vector<vector<string>> build_pipeline(const string &s) {
 }
 
 void handle_pipe(const string &command){
-    cout << "IS this called ?? " << endl;
     vector<vector<string>> stages = build_pipeline(command);
     int total = stages.size();
     if(total == 0) return;

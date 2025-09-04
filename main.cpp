@@ -12,33 +12,45 @@
 #include "commands.h"
 using namespace std;
 
-bool finish = false;
-bool redirection = false;
-bool pipeline = false;
+bool finish = false; // global flag to exit from the terminal
+bool redirection = false; // to check if the command is of pure redirection
+bool pipeline = false; // to check if the command is pipeline
+bool bg_flag = false; // to check if the command is for background processes.
 
-pid_t fg_pid = -1;
-vector<pid_t> bg_pid;
+pid_t fg_pid = -1; // foreground process id initialized to -1
+vector<pid_t> bg_pid; // vector to store background processes, so that they can be handled if they become zombie
 
-string tokenizer(string s){
+// string_processor which removes extra spaces, newline characters, tab chars from the input
+string string_processor(string s){
     string t = "";
+    // flag1 is for single quotes, flag2 is for double quotes, flag3 is for extra spaces
     bool flag1 = false, flag2 = false, flag3 = false;
     int start = 0, end = s.size() - 1;
     for(int i=0;i<s.size() ;i++){
-        if(s[i] == ' ') continue;
+        // if extra characters found at the beginning of input, skip them
+        if(s[i] == ' ' || s[i] == '\n' || s[i] == '\t') continue;
         else{
+            // break when no extra chars found
             start = i;
             break;
         }
     }
     for(int i=s.size() - 1;i>=0 ;i--){
-        if(s[i] == ' ') continue;
+        // if extra characters found at the end of the input, skip them
+        if(s[i] == ' ' || s[i] == '\n' || s[i] == '\t') continue;
         else{
+            // break when no extra chars found
             end = i;
             break;
         }
     }
     for(int i=start;i<= end; i++){
+        // if '&' is found outside any quotes, set the background process flag as true
+        if(!flag1 && !flag2 && s[i] == '&') bg_flag = true;
+        // if '|' is found outside any quotes, set the pipeline flag as true
         if(!flag1 && !flag2 && (s[i] == '|')) pipeline = true;
+
+        // if '>' or '<' is found outside any quotes, set the redirection flag as true
         if(!flag1 && !flag2 && (s[i] == '>' || s[i] == '<')) redirection = true;
         if((flag1 || flag2) && s[i] != '\'' && s[i] != '"'){
             t += s[i];
@@ -82,9 +94,14 @@ void handle_command(string s){
             k = i;
             break;
         }
-        else{
-            temp += s[i];
-        }
+        else temp += s[i];
+    }
+    if(bg_flag){
+        handle_system(s);
+        bg_flag = false;
+        pipeline = false;
+        redirection = false;
+        return;
     }
     
     if(pipeline){
@@ -180,7 +197,7 @@ void handle_sigint(int sig) {
     }
 }
 
-void sigchld_handler(int sig){
+void handle_sigchld(int sig){
     pid_t pid;
     int status;
     while((pid=waitpid(-1, &status, WNOHANG))>0){
@@ -213,7 +230,7 @@ int main(){
 
     signal(SIGTSTP, handle_sigtstp); // CTRL + Z
     signal(SIGINT, handle_sigint); // CTRL + C
-    signal(SIGCHLD, sigchld_handler);
+    signal(SIGCHLD, handle_sigchld);
 
     // TAB
     autocomplete();
@@ -259,8 +276,8 @@ int main(){
         string command = "";
         for(int i=0; i<line.size(); i++){
             if(line[i] == ';'){
-                pipeline = redirection = false;
-                string temp = tokenizer(command);
+                pipeline = redirection = bg_flag = false;
+                string temp = string_processor(command);
                 handle_command(temp);
                 command = "";
                 if(finish) break;
@@ -271,7 +288,7 @@ int main(){
         }
         if(finish) break;
         if(command != ""){
-            string temp = tokenizer(command);
+            string temp = string_processor(command);
             handle_command(temp);
         }
         if(finish) break;

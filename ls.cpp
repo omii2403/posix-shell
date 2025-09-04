@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <pwd.h>
 #include <grp.h>
+#include "commands.h"
 
 using namespace std;
 
@@ -15,20 +16,24 @@ vector<string> tokens(const string &arg){
     for(char c : arg){
         if(c == ' '){
             if(!temp.empty()){
+                temp = strip_quotes(temp);
                 parts.push_back(temp);
                 temp ="";
             }
         }
         else temp += c;
     }
-    if(!temp.empty()) parts.push_back(temp);
+    if(!temp.empty()){
+        temp = strip_quotes(temp);
+        parts.push_back(temp);
+    }
     return parts;
 }
 
 void handle_ls(const string &cmd){
     bool flg_a = false, flg_l = false;
     vector<string> dirs; // store multiple directories
-
+    // string s = strip_quotes(cmd);
     vector<string> args = tokens(cmd);
 
     for(int i=0;i < args.size(); i++){
