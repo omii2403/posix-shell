@@ -90,7 +90,7 @@ void handle_command(string s){
         int n = s.size();
         string temp = "";
         int k = 0;
-        // separate the command line by space
+        // separate the first command line by space
         for(int i=0; i < n; i++){
             if(s[i] == ' '){
                 k = i;
@@ -179,8 +179,8 @@ void handle_command(string s){
     }
 }
 
-void handle_sigtstp(int sig) {
-    if (fg_pid > 0) {
+void handle_sigtstp(int sig){
+    if(fg_pid > 0){
         kill(-fg_pid, SIGTSTP);
         cout << endl << "Process " << fg_pid << " stopped and moved to background" << endl;
     }
@@ -192,7 +192,7 @@ void handle_sigtstp(int sig) {
     }
 }
 
-void handle_sigint(int sig) {
+void handle_sigint(int sig){
     if(fg_pid > 0){
         kill(-fg_pid, SIGINT);   // send SIGINT to the whole fg process group
         cout << endl << "Process " << fg_pid << " interrupted" << endl;

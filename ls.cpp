@@ -7,36 +7,14 @@
 #include <pwd.h>
 #include <grp.h>
 #include "commands.h"
-
 using namespace std;
-
-vector<string> tokens(const string &arg){
-    string temp = "";
-    vector<string> parts;
-    for(char c : arg){
-        if(c == ' '){
-            if(!temp.empty()){
-                temp = strip_quotes(temp);
-                parts.push_back(temp);
-                temp ="";
-            }
-        }
-        else temp += c;
-    }
-    if(!temp.empty()){
-        temp = strip_quotes(temp);
-        parts.push_back(temp);
-    }
-    return parts;
-}
 
 void handle_ls(const string &cmd){
     bool flg_a = false, flg_l = false;
     vector<string> dirs; // store multiple directories
-    // string s = strip_quotes(cmd);
-    vector<string> args = tokens(cmd);
+    vector<string> args = tokenize(cmd); // tokenize
 
-    for(int i=0;i < args.size(); i++){
+    for(int i=0;i <args.size();i++){
         string arg = args[i];
         if(arg == "-a") flg_a = true;
         else if(arg =="-l") flg_l = true;
@@ -70,6 +48,7 @@ void handle_ls(const string &cmd){
         }
         closedir(dp);
 
+        // sort in chronolical order
         sort(files.begin(), files.end());
 
         if(flg_l){
@@ -82,9 +61,10 @@ void handle_ls(const string &cmd){
                 if(stat(fpath.c_str(), &stv[i]) == -1) continue;
                 blk += stv[i].st_blocks;
             }
-
+            // print block count
             cout << "total " << (blk >> 1) << endl;
 
+            // check permissions.
             for(size_t i=0; i<files.size(); i++){
                 string fpath = dirPath + "/" + files[i];
                 struct stat st;
@@ -105,7 +85,7 @@ void handle_ls(const string &cmd){
                 cout << ' ' << st.st_nlink << ' ';
                 struct passwd *pw = getpwuid(st.st_uid);
                 struct group *gr = getgrgid(st.st_gid);
-                cout << (pw ? pw->pw_name : "?") << ' ' << (gr ? gr->gr_name : "?") << " " << st.st_size << " ";
+                cout << (pw ? pw->pw_name : "?") << ' ' << (gr? (gr->gr_name): "?") << " " << st.st_size << " ";
 
                 char tbuf[80];
                 struct tm *ti = localtime(&st.st_mtime);
@@ -116,7 +96,7 @@ void handle_ls(const string &cmd){
             }
         }
         else{
-            for (auto &f : files) cout << f << "  ";
+            for(auto &f : files) cout << f << "  ";
             cout << endl;
         }
         if(dirs.size() > 1 && d < dirs.size()-1) cout << endl; // blank line between dirs
